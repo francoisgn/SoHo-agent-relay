@@ -14,7 +14,8 @@
 # RELAY_ACME_SYNO_PORT (5001), RELAY_ACME_SERVER (letsencrypt ; letsencrypt_test pour l'essai).
 # Le nom du NAS doit pointer vers son IP LAN dans le conteneur (RELAY_ACME_HOSTS_ENTRY).
 # Secrets (scripts/set-secret.sh, variables d'environnement) : GANDI_LIVEDNS_TOKEN (PAT Gandi
-# limité au domaine), SYNO_ACME_PASSWORD.
+# limité au domaine, recommandé) ou GANDI_LIVEDNS_KEY (clé API legacy, tout le compte), et
+# SYNO_ACME_PASSWORD.
 #
 # acme.sh enregistre toujours le jeton et le mot de passe qu'on lui passe (SAVED_* dans
 # account.conf et <domaine>.conf ; aucune option ne l'empêche en 3.1.x). Les variables
@@ -41,7 +42,10 @@ purge() {
   done < <(find "$STATE" -name '*.conf' -type f -print0)
 }
 
-need_dns() { [ -n "${GANDI_LIVEDNS_TOKEN:-}" ] || die "GANDI_LIVEDNS_TOKEN is not set (scripts/set-secret.sh gandi_livedns_token ...)"; }
+need_dns() {
+  [ -n "${GANDI_LIVEDNS_TOKEN:-}" ] || [ -n "${GANDI_LIVEDNS_KEY:-}" ] ||
+    die "neither GANDI_LIVEDNS_TOKEN nor GANDI_LIVEDNS_KEY is set (scripts/set-secret.sh gandi_livedns_token ...)"
+}
 need_dsm() {
   [ -n "${RELAY_ACME_SYNO_USER:-}" ] || die "RELAY_ACME_SYNO_USER is not set (.env)"
   [ -n "${SYNO_ACME_PASSWORD:-}" ] || die "SYNO_ACME_PASSWORD is not set (scripts/set-secret.sh syno_acme_password ...)"
