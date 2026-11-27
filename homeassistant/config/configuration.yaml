@@ -1,0 +1,12 @@
+# Generique et versionnable : aucune zone, coordonnee, pays ni nom de domicile.
+# Ces reglages se font dans l'UI (onboarding) ou dans secrets.yaml, hors repo.
+# secrets.yaml, .storage/ et la base restent sur le serveur.
+default_config:
+
+# HomeKit Bridge et MCP Server se configurent via l'UI (config flow), pas en YAML :
+# une instance UI + une instance YAML = deux bridges sur des ports differents.
+
+# Historique borne (disque et CPU)
+recorder:
+  purge_keep_days: 10
+  commit_interval: 30

@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# PID 1 (sous tini) : lance relay-loop dans une session tmux (TTY exigé par Claude Code
+# pour les confirmations de confiance / Remote Control), puis veille. Si la session tmux
+# disparaît, le conteneur sort et Docker le relance (restart: unless-stopped).
+set -euo pipefail
+
+SESSION=relay
+
+# tmux : historique large, pas de renommage auto de fenêtre.
+cat >"/tmp/tmux.conf" <<'EOF'
+set -g history-limit 20000
+set -g allow-rename off
+set -g mouse on
+EOF
+
+tmux -f /tmp/tmux.conf new-session -d -s "$SESSION" -x 220 -y 50 /usr/local/bin/relay-loop
+echo "[relay] tmux session '$SESSION' started; attach with: docker exec -it claude-relay tmux attach -t $SESSION (detach: Ctrl-b d)"
+
+while tmux has-session -t "$SESSION" 2>/dev/null; do
+  sleep 30
+done
+
+echo "[relay] tmux session ended, exiting so Docker restarts the container" >&2
+exit 1

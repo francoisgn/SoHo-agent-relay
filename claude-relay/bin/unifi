@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+# unifi : appel de l'API d'intégration locale UniFi Network depuis le relais, sans jamais
+# exposer la clé (ni en argument, ni dans l'environnement, ni à l'écran).
+#
+#   unifi get <chemin>                    ex. unifi get /v1/sites
+#   unifi post|put|patch <chemin> <json>  écriture : la politique managée demande une approbation
+#   unifi delete <chemin>
+#
+# <chemin> est relatif à $UNIFI_URL/proxy/network/integration (ex. /v1/sites/<id>/clients?limit=200).
+# Doc : https://developer.ui.com/network/v11.0.97/ai-gettingstarted.md (guide pour agents IA),
+#       https://developer.ui.com/network/v11.0.97/llms.txt (endpoints), …/openapi.json (contrat).
+# URL : UNIFI_URL du conteneur (compose). Clé : fichier $UNIFI_KEY_FILE (défaut
+# /run/relay-secrets/unifi_api_key, 600), posé par
+# scripts/set-secret.sh. Elle est passée à curl par sa config sur stdin (--config -).
+# TLS : la console sert un certificat auto-signé ; -k seulement si UNIFI_INSECURE=true (LAN).
+{ set +x; } 2>/dev/null   # jamais de trace (bash -x afficherait la clé)
+set -euo pipefail
+
+die() { printf 'unifi: %s\n' "$*" >&2; exit 2; }
+
+[ $# -ge 2 ] || die "usage: unifi get|post|put|patch|delete <path> [json]"
+method=$(printf '%s' "$1" | tr '[:lower:]' '[:upper:]')
+path=$2
+body=${3:-}
+case "$method" in
+  GET | DELETE) [ -z "$body" ] || die "$method takes no body" ;;
+  POST | PUT | PATCH) [ -n "$body" ] || die "$method needs a JSON body" ;;
+  *) die "unknown method '$1' (get|post|put|patch|delete)" ;;
+esac
+case "$path" in
+  /v1/*) ;;
+  *) die "path must start with /v1/ (got '$path')" ;;
+esac
+
+# URL lue dans l'environnement de PID 1 (fixé par compose) : un `UNIFI_URL=… unifi get` ne peut
+# pas détourner la clé vers un autre serveur. Hors conteneur (tests) : variable d'environnement.
+if [ -r /proc/1/environ ]; then
+  url=$(tr '\0' '\n' </proc/1/environ | sed -n 's/^UNIFI_URL=//p' | head -n 1)
+else
+  url=${UNIFI_URL:-}
+fi
+[ -n "$url" ] || die "UNIFI_URL is not set (console address, see .env)"
+case "$url" in https://*) ;; *) die "UNIFI_URL must be https://<console>" ;; esac
+key_file=${UNIFI_KEY_FILE:-/run/relay-secrets/unifi_api_key}
+[ -r "$key_file" ] && [ -s "$key_file" ] || die "no API key in $key_file (scripts/set-secret.sh on the Mac)"
+
+args=(--silent --show-error --fail-with-body --max-time 20 -X "$method"
+      -H 'Accept: application/json' "${url%/}/proxy/network/integration${path}")
+[ "${UNIFI_INSECURE:-true}" = true ] && args=(-k "${args[@]}")
+if [ -n "$body" ]; then
+  printf '%s' "$body" | jq -e . >/dev/null 2>&1 || die "body is not valid JSON"
+  args+=(-H 'Content-Type: application/json' --data-binary "$body")
+fi
+
+# La clé ne transite que par la config curl lue sur stdin.
+key=$(tr -d '\r\n' <"$key_file")
+printf 'header = "X-API-KEY: %s"\n' "$key" | curl --config - "${args[@]}"

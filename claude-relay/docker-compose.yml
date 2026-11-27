@@ -1,0 +1,68 @@
+# claude-relay : compose v1 (format 2.4 pour mem_limit sans swarm).
+# Variables : .env à côté de ce fichier (copié par scripts/deploy.sh, voir .env.example).
+# Lancement ciblé : docker-compose -p claude-relay up -d --build claude-relay
+version: "2.4"
+
+services:
+  claude-relay:
+    build:
+      context: .
+      args:
+        INSTALL_BUN: "${RELAY_INSTALL_BUN:-false}"
+        RELAY_UID: "${RELAY_UID:-1500}"
+        RELAY_GID: "${RELAY_GID:-1500}"
+    image: claude-relay:local
+    container_name: claude-relay
+    hostname: "${RELAY_NAME:-claude-relay}"
+    restart: unless-stopped
+
+    # Ressources : au repos ~200-300 Mo ; 1 Go laisse de la marge pour une session active.
+    mem_limit: "${RELAY_MEM_LIMIT:-1g}"
+    memswap_limit: "${RELAY_MEM_LIMIT:-1g}"
+    # Poids CPU relatif (défaut Docker 1024) : pas de `cpus`, le quota CFS manque sur
+    # certains vieux kernels (3.10 Synology).
+    cpu_shares: 512   # entier en dur : compose v1 refuse une valeur interpolée (chaîne)
+
+    # Durcissement : non-root (USER de l'image), aucun privilège, rootfs en lecture seule.
+    # Pas de socket Docker, pas de privileged, aucun port publié, aucun partage de
+    # données de l'hôte monté. Réseau bridge par défaut : sortant HTTPS seulement.
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+    environment:
+      RELAY_MODE: "${RELAY_MODE:-remote-control}"
+      RELAY_NAME: "${RELAY_NAME:-claude-relay}"
+      RELAY_CHANNELS: "${RELAY_CHANNELS:-plugin:telegram@claude-plugins-official}"
+      TZ: "${TZ:-UTC}"
+      # Intégrations (secrets : fichiers de /run/relay-secrets, jamais ici)
+      UNIFI_URL: "${UNIFI_URL:-}"
+      UNIFI_INSECURE: "${UNIFI_INSECURE:-true}"
+      RELAY_GIT_NAME: "${RELAY_GIT_NAME:-}"
+      RELAY_GIT_EMAIL: "${RELAY_GIT_EMAIL:-}"
+
+    volumes:
+      # Politique générique (managed settings, hooks, CLAUDE.md de base) : lecture seule,
+      # au-dessus de tout réglage que Claude pourrait écrire.
+      - ./policy:/etc/claude-code:ro
+      # Personnel (local/, non versionné) : allowlists et contexte opérateur.
+      - ./local/managed-settings.d:/etc/claude-code/managed-settings.d:ro
+      - ./local/CLAUDE.md:/home/relay/.claude/CLAUDE.md:ro
+      # État persistant : login claude.ai, sessions, mémoire, plugins (~/.claude, ~/.claude.json)
+      - ${RELAY_DATA:?set RELAY_DATA in .env}/home:/home/relay
+      # Espace de travail de Claude (seul endroit où il écrit)
+      - ${RELAY_DATA}/workspace:/workspace
+      # Journal d'audit JSONL (hook PostToolUse), hors repo
+      - ${RELAY_DATA}/logs:/var/log/claude-relay
+      # Jeton setup-token optionnel (fichier 600, uid du conteneur)
+      - ${RELAY_DATA}/secrets:/run/relay-secrets:ro
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"

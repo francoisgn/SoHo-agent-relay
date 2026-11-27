@@ -1,0 +1,8 @@
+[
+  { "name": "area: relay", "color": "1d76db", "axis": "area", "description": "claude-relay container, policy, hooks, deploy" },
+  { "name": "area: nas", "color": "0e8a16", "axis": "area", "description": "NAS integration: load, bandwidth, housekeeping" },
+  { "name": "area: unifi", "color": "5319e7", "axis": "area", "description": "UniFi integration (scoped API or MCP)" },
+  { "name": "area: hue", "color": "fbca04", "axis": "area", "description": "Hue bridge integration (local CLIP v2 API)" },
+  { "name": "area: homeassistant", "color": "c5def5", "axis": "area", "description": "Home Assistant (paused, optional)" },
+  { "name": "area: harness", "color": "bfdadc", "axis": "area", "description": "Belayline harness, pre-commit, CI, repository plumbing" }
+]

@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Healthcheck Docker : sain si la session tmux existe ET si Claude Code tourne
+# (état « running » posé par relay-loop et un processus enfant de la boucle vivant).
+# « waiting-login » = non sain, volontairement : le relais n'est pas joignable.
+set -euo pipefail
+
+tmux has-session -t relay 2>/dev/null || { echo "tmux session missing"; exit 1; }
+
+st=$(cat /tmp/relay-state 2>/dev/null || echo unknown)
+if [ "$st" != running ]; then
+  echo "relay state: $st"
+  exit 1
+fi
+
+loop_pid=$(cat /tmp/relay-loop.pid 2>/dev/null || echo 0)
+if pgrep -P "$loop_pid" >/dev/null 2>&1; then
+  echo "claude running"
+  exit 0
+fi
+echo "claude process not found"
+exit 1

@@ -1,0 +1,10 @@
+# Personnel : jamais versionné (seuls les *.example le sont)
+/local/*
+!/local/*.example
+!/local/managed-settings.d/
+/local/managed-settings.d/*
+!/local/managed-settings.d/*.example
+.env
+# Journaux d'audit et données : restent sur l'hôte (RELAY_DATA)
+logs/
+*.jsonl

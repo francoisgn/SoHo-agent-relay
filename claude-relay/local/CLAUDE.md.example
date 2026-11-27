@@ -1,0 +1,16 @@
+# Contexte opérateur (copier en local/CLAUDE.md, non versionné)
+# Monté en lecture seule dans le conteneur comme ~/.claude/CLAUDE.md.
+
+Opérateur : <prénom>. Langue des réponses : <fr|en>. Style : <court, factuel…>.
+
+Hôte : <modèle du NAS / de la machine>, <RAM>, <autres services qui y tournent : ne pas y toucher>.
+
+## Périmètre
+
+| Zone | Accès | État |
+|---|---|---|
+| `/workspace` | lecture/écriture | actif |
+| <NAS> | lecture seule via compte SSH dédié | à venir |
+| <routeur / contrôleur réseau> | lecture seule via clé API limitée | à venir |
+| <domotique> | MCP, jeton à droits limités | à venir |
+| Internet | sur demande, chaque requête approuvée | actif |

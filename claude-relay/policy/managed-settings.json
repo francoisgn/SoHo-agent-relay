@@ -1,0 +1,140 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "defaultMode": "default",
+    "disableBypassPermissionsMode": "disable",
+    "disableAutoMode": "disable",
+    "blockWritesOutsideWorkingDirectories": true,
+    "deny": [
+      "Bash(rm -rf *)",
+      "Bash(rm -fr *)",
+      "Bash(rm -r *)",
+      "Bash(rm -R *)",
+      "Bash(rm --recursive *)",
+      "Bash(docker *)",
+      "Bash(docker-compose *)",
+      "Bash(podman *)",
+      "Bash(sudo *)",
+      "Bash(su *)",
+      "Bash(dd *)",
+      "Bash(mkfs *)",
+      "Bash(shutdown *)",
+      "Bash(reboot *)",
+      "Bash(poweroff *)",
+      "Bash(halt *)",
+      "Bash(chmod -R *)",
+      "Bash(chown -R *)",
+      "Bash(git push --force *)",
+      "Bash(git push -f *)",
+      "Read(~/.claude/.credentials.json)",
+      "Read(~/.claude/channels/**)",
+      "Read(~/.ssh/**)",
+      "Read(//run/relay-secrets/**)",
+      "Read(//proc/*/environ)",
+      "Edit(~/.claude/settings.json)",
+      "Edit(~/.claude/settings.local.json)",
+      "Edit(~/.claude/CLAUDE.md)",
+      "Edit(~/.claude.json)",
+      "Edit(~/.ssh/**)",
+      "Edit(~/.bashrc)",
+      "Edit(~/.profile)",
+      "Edit(//etc/**)",
+      "Edit(//var/log/claude-relay/**)",
+      "Edit(//usr/**)",
+      "Bash(gh pr merge *)",
+      "Bash(gh repo delete *)",
+      "Bash(gh repo edit *)",
+      "Bash(gh repo rename *)",
+      "Bash(gh repo archive *)",
+      "Bash(gh secret *)",
+      "Bash(gh variable *)",
+      "Bash(gh ruleset *)",
+      "Bash(gh auth *)",
+      "Bash(gh workflow *)",
+      "Bash(gh release delete *)",
+      "Read(~/.config/gh/**)",
+      "Edit(~/.config/gh/**)",
+      "Edit(~/.gitconfig)"
+    ],
+    "ask": [
+      "Bash(rm *)",
+      "Bash(mv *)",
+      "Bash(kill *)",
+      "Bash(pkill *)",
+      "Bash(curl *)",
+      "Bash(wget *)",
+      "Bash(ssh *)",
+      "Bash(scp *)",
+      "Bash(sftp *)",
+      "Bash(rsync *)",
+      "Bash(nc *)",
+      "Bash(git clone *)",
+      "Bash(git fetch *)",
+      "Bash(git pull *)",
+      "Bash(git push *)",
+      "Bash(git reset *)",
+      "Bash(git clean *)",
+      "Bash(npm *)",
+      "Bash(npx *)",
+      "Bash(bun *)",
+      "Bash(bunx *)",
+      "Bash(pip *)",
+      "Bash(node *)",
+      "Bash(python3 *)",
+      "WebFetch",
+      "WebSearch",
+      "Bash(unifi post *)",
+      "Bash(unifi put *)",
+      "Bash(unifi patch *)",
+      "Bash(unifi delete *)",
+      "Bash(gh api *)",
+      "Bash(gh repo clone *)"
+    ],
+    "allow": [
+      "Bash(unifi get *)",
+      "Bash(gh repo list *)",
+      "Bash(gh repo view *)",
+      "Bash(gh issue list *)",
+      "Bash(gh issue view *)",
+      "Bash(gh pr list *)",
+      "Bash(gh pr view *)",
+      "Bash(gh pr diff *)",
+      "Bash(gh pr checks *)",
+      "Bash(gh run list *)",
+      "Bash(gh run view *)",
+      "Bash(gh label list *)"
+    ]
+  },
+  "allowManagedHooksOnly": true,
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/etc/claude-code/hooks/guard-bash.sh",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "sh -c 'command -v python3 >/dev/null 2>&1 || exit 0; exec python3 /etc/claude-code/hooks/guard-git.py'",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/etc/claude-code/hooks/log-action.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

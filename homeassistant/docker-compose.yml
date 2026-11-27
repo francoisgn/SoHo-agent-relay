@@ -1,0 +1,14 @@
+# Home Assistant (docker-compose v1.28+, Docker 20.10+). Variables : voir .env.example.
+# network_mode: host requis : mDNS/Bonjour (HomeKit, decouverte), ports 8123,
+# 21063-21064 (HomeKit Bridge). Pas de privileged, pas de socket Docker.
+services:
+  homeassistant:
+    image: ghcr.io/home-assistant/home-assistant:2026.11.1
+    container_name: homeassistant
+    network_mode: host
+    restart: unless-stopped
+    mem_limit: ${HA_MEM_LIMIT:-1g}
+    environment:
+      - TZ=${TZ:-Europe/Paris}
+    volumes:
+      - ${HA_REMOTE_DIR:?set HA_REMOTE_DIR in .env}/config:/config

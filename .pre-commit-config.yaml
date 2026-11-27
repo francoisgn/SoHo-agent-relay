@@ -1,0 +1,59 @@
+# Hooks lancés à chaque commit (et rejoués en CI). Versions pinnées = mêmes
+# résultats sur toutes les machines, sans installer les linters à la main.
+# Mise à jour des versions : pre-commit autoupdate
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-added-large-files
+      - id: check-executables-have-shebangs
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-shebang-scripts-are-executable
+      - id: check-yaml
+      - id: detect-private-key
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.11.0.1-1
+    hooks:
+      - id: shellcheck
+
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.0
+    hooks:
+      - id: gitleaks             # bloque un secret au commit (la CI scanne tout l'historique)
+
+  # Added with the Belayline harness (docs/belayline-adoption.md). Each tool is installed by pre-commit itself.
+  - repo: https://github.com/AleksaC/hadolint-py
+    rev: v2.15.1
+    hooks:
+      - id: hadolint             # Dockerfiles (pip wheel of the official binary, no Docker needed)
+
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.7.12
+    hooks:
+      - id: actionlint           # GitHub Actions workflows (built by pre-commit's own Go toolchain)
+
+  - repo: https://github.com/zizmorcore/zizmor-pre-commit
+    rev: v1.32.0
+    hooks:
+      - id: zizmor               # workflow security: injection, unpinned actions, token scope
+        args: [--offline]
+
+  - repo: https://github.com/DavidAnson/markdownlint-cli2
+    rev: v0.24.1
+    hooks:
+      - id: markdownlint-cli2    # rules and globs in .markdownlint-cli2.jsonc (rendering breakage only)
+        # Pinned Node LTS: nodeenv's "latest" picks a v27 alpha whose version string it cannot parse
+        language_version: 26.13.1
+
+  - repo: local
+    hooks:
+      - id: relay-guard-tests    # rejoue les cas allow/deny du hook guard-bash du relais
+        name: claude-relay guard-bash cases
+        entry: claude-relay/tests/test-guard.sh
+        language: system
+        files: ^claude-relay/(policy/hooks/guard-bash\.sh|tests/)
+        pass_filenames: false

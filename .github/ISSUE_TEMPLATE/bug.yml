@@ -1,0 +1,46 @@
+name: Bug
+description: Something does not work as expected
+labels: ["type: bug", "status: needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Redact before posting**: no token, IP address, hostname, domain or serial number, in the text or in pasted
+        logs. A security flaw goes through the Security tab, never an issue.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: 'First thing a human reads: a user story ("As a …, I want …, so that …") or two lines.'
+    validations:
+      required: true
+  - type: textarea
+    id: behaviour
+    attributes:
+      label: Observed and expected behaviour
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: They become the first (red) test of the fix (METHODOLOGY.md §2 ter).
+    validations:
+      required: true
+  - type: input
+    id: introduced
+    attributes:
+      label: Origin (PR)
+      description: 'When known, write "Introduced by #NNN" with the PR that brought the defect (METHODOLOGY.md §6).'
+  - type: input
+    id: version
+    attributes:
+      label: Commit, host (model, DSM / kernel / Docker version), Claude Code version
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: Triage sets the matching `priority:` label.
+      options: [critical (data loss or crash), high, medium, low]
+    validations:
+      required: true

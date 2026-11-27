@@ -1,0 +1,10 @@
+.env
+*.local
+secrets/
+*.token
+**/.claude/settings.local.json
+# Machine values and audit logs never leave the host (each module may add its own rules)
+.env.*
+!.env.example
+*.log
+*.jsonl

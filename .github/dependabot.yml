@@ -1,0 +1,23 @@
+version: 2
+updates:
+  # Actions are pinned by SHA with the tag as a comment: Dependabot bumps both.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+  # Base images pinned by digest in the Dockerfiles.
+  - package-ecosystem: docker
+    directories: ["/claude-relay"]
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+  # Compose image tags (Home Assistant).
+  - package-ecosystem: docker-compose
+    directories: ["/homeassistant"]
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
