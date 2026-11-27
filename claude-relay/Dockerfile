@@ -13,6 +13,9 @@ ARG INSTALL_BUN=false
 ARG BUN_VERSION=1.4.4
 ARG RELAY_UID=1500
 ARG RELAY_GID=1500
+# acme.sh (certificat du NAS, bin/relay-acme) : archive de la release officielle, SHA-256 vérifié.
+ARG ACME_SH_VERSION=3.1.7
+ARG ACME_SH_SHA256=1b674f31aab8844e0ed770d4a5907a777d259f58b476c5f9334cc846832081e7
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
@@ -21,14 +24,14 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 # force-unsafe-io : dpkg sans fsync par fichier (sinon des dizaines de minutes sur un NAS
 # dont le disque est chargé) ; sans risque pour un build d'image, retiré ensuite.
 # python3 : hook guard-git et scripts d'analyse ; gh : GitHub par PR (dépôt apt officiel, clé
-# vérifiée par signed-by) ; sqlite3, dig, nc, file, less, tree, archives : diagnostic et inspection.
+# vérifiée par signed-by) ; openssl : clés et CSR d'acme.sh ; sqlite3, dig, nc, file, less, tree, archives : diagnostic et inspection.
 # Ni pip, ni compilateurs, ni ping (CAP_NET_RAW) : image légère pour un petit NAS.
 # hadolint ignore=DL3008
 RUN echo force-unsafe-io >/etc/dpkg/dpkg.cfg.d/99-relay-unsafe-io \
  && apt-get update \
  && apt-get install -y --no-install-recommends \
       ca-certificates curl git jq openssh-client procps tmux tini util-linux \
-      python3-minimal python3 sqlite3 dnsutils netcat-openbsd file less tree unzip xz-utils zstd \
+      python3-minimal python3 openssl sqlite3 dnsutils netcat-openbsd file less tree unzip xz-utils zstd \
  && install -d -m 0755 /etc/apt/keyrings \
  && curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
       -o /etc/apt/keyrings/githubcli-archive-keyring.gpg \
@@ -38,6 +41,18 @@ RUN echo force-unsafe-io >/etc/dpkg/dpkg.cfg.d/99-relay-unsafe-io \
  && apt-get update \
  && apt-get install -y --no-install-recommends gh \
  && rm -rf /var/lib/apt/lists/* /etc/dpkg/dpkg.cfg.d/99-relay-unsafe-io
+
+# acme.sh en lecture seule dans /opt/acme.sh : le script et ses hooks dnsapi/ et deploy/ ;
+# son état (compte, certificats) va dans le home persistant (bin/relay-acme --config-home).
+RUN curl -fsSL -o /tmp/acme.tar.gz \
+      "https://github.com/acmesh-official/acme.sh/archive/refs/tags/${ACME_SH_VERSION}.tar.gz" \
+ && echo "${ACME_SH_SHA256}  /tmp/acme.tar.gz" | sha256sum -c - \
+ && mkdir -p /opt/acme.sh \
+ && tar -xzf /tmp/acme.tar.gz -C /opt/acme.sh --strip-components=1 \
+      "acme.sh-${ACME_SH_VERSION}/acme.sh" "acme.sh-${ACME_SH_VERSION}/dnsapi" \
+      "acme.sh-${ACME_SH_VERSION}/deploy" "acme.sh-${ACME_SH_VERSION}/LICENSE.md" \
+ && chmod 0755 /opt/acme.sh/acme.sh \
+ && rm -f /tmp/acme.tar.gz
 
 # Claude Code (npm, version épinglée) ; Bun optionnel (le paquet npm choisit le binaire
 # « baseline » sans AVX2, nécessaire sur les vieux Celeron/Atom).

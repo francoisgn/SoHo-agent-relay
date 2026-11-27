@@ -7,6 +7,10 @@ Notable changes, newest first. No releases yet: entries accumulate under "Unrele
 
 ### Added
 
+- NAS certificate: `bin/relay-acme` issues a Let's Encrypt certificate by DNS-01 (Gandi LiveDNS, no open port) with
+  acme.sh 3.1.7 pinned in the image (SHA-256 checked), deploys it to DSM (`synology_dsm` hook, DSM reached by name
+  through `RELAY_ACME_HOSTS_ENTRY`) and `relay-loop` checks the renewal daily. acme.sh always saves the token and
+  password it is given: `relay-acme` purges them on every exit. `openssl` added to the image.
 - Image: `python3`, `gh` (official apt repository), `sqlite3`, `dig`, `nc`, `file`, `less`, `tree` and archive
   tools.
 - Secrets as environment variables: every file pushed by `scripts/set-secret.sh` becomes `<NAME>` for the agent

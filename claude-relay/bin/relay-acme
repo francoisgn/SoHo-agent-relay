@@ -1,0 +1,92 @@
+#!/usr/bin/env bash
+# Certificat Let's Encrypt d'un NAS Synology, émis et renouvelé depuis le conteneur :
+# acme.sh (figé dans l'image, /opt/acme.sh), validation DNS-01 par Gandi LiveDNS (aucun port
+# ouvert), déploiement dans DSM par son API (hook synology_dsm, administrateur dédié).
+#
+# Usage :
+#   relay-acme issue  [--force]        # émet le certificat (DNS-01), sans le déployer
+#   relay-acme deploy [--insecure]     # le pousse dans DSM ; --insecure : 1er déploiement
+#                                      # seulement, quand le certificat en place est expiré
+#   relay-acme renew  [--force]        # renouvelle si dû (30 j avant l'échéance) et redéploie
+#   relay-acme status                  # échéance et empreinte du certificat servi par DSM
+#
+# Réglages (.env -> compose) : RELAY_ACME_DOMAIN (vide = désactivé), RELAY_ACME_SYNO_USER,
+# RELAY_ACME_SYNO_PORT (5001), RELAY_ACME_SERVER (letsencrypt ; letsencrypt_test pour l'essai).
+# Le nom du NAS doit pointer vers son IP LAN dans le conteneur (RELAY_ACME_HOSTS_ENTRY).
+# Secrets (scripts/set-secret.sh, variables d'environnement) : GANDI_LIVEDNS_TOKEN (PAT Gandi
+# limité au domaine, recommandé) ou GANDI_LIVEDNS_KEY (clé API legacy, tout le compte), et
+# SYNO_ACME_PASSWORD.
+#
+# acme.sh enregistre toujours le jeton et le mot de passe qu'on lui passe (SAVED_* dans
+# account.conf et <domaine>.conf ; aucune option ne l'empêche en 3.1.x). Les variables
+# d'environnement priment sur ces valeurs : on les purge donc à la fin de chaque exécution.
+set -euo pipefail
+
+ACME=/opt/acme.sh/acme.sh
+STATE=${RELAY_ACME_HOME:-$HOME/.acme-relay}
+DOMAIN=${RELAY_ACME_DOMAIN:-}
+SERVER=${RELAY_ACME_SERVER:-letsencrypt}
+PORT=${RELAY_ACME_SYNO_PORT:-5001}
+
+die() {
+  printf 'relay-acme: %s\n' "$*" >&2
+  exit 1
+}
+
+# Supprime toute valeur secrète enregistrée par acme.sh (le reste de la conf est utile).
+purge() {
+  local f
+  [ -d "$STATE" ] || return 0
+  while IFS= read -r -d '' f; do
+    sed -i -E '/^SAVED_(GANDI_LIVEDNS_(TOKEN|KEY)|SYNO_(USERNAME|PASSWORD|TOTP_SECRET|OTP_CODE))=/d' "$f"
+  done < <(find "$STATE" -name '*.conf' -type f -print0)
+}
+
+need_dns() {
+  [ -n "${GANDI_LIVEDNS_TOKEN:-}" ] || [ -n "${GANDI_LIVEDNS_KEY:-}" ] ||
+    die "neither GANDI_LIVEDNS_TOKEN nor GANDI_LIVEDNS_KEY is set (scripts/set-secret.sh gandi_livedns_token ...)"
+}
+need_dsm() {
+  [ -n "${RELAY_ACME_SYNO_USER:-}" ] || die "RELAY_ACME_SYNO_USER is not set (.env)"
+  [ -n "${SYNO_ACME_PASSWORD:-}" ] || die "SYNO_ACME_PASSWORD is not set (scripts/set-secret.sh syno_acme_password ...)"
+  export SYNO_SCHEME=https SYNO_HOSTNAME="$DOMAIN" SYNO_PORT="$PORT" \
+    SYNO_USERNAME="$RELAY_ACME_SYNO_USER" SYNO_PASSWORD="$SYNO_ACME_PASSWORD" \
+    SYNO_CERTIFICATE="$DOMAIN (acme)" SYNO_CREATE=1
+}
+
+acme() { "$ACME" --home /opt/acme.sh --config-home "$STATE" --server "$SERVER" "$@"; }
+
+cmd=${1:-}
+shift || true
+[ -n "$DOMAIN" ] || die "RELAY_ACME_DOMAIN is not set (.env)"
+[ -x "$ACME" ] || die "acme.sh is not in the image ($ACME)"
+mkdir -p "$STATE" && chmod 700 "$STATE"
+umask 077
+trap purge EXIT
+
+case "$cmd" in
+  issue)
+    need_dns
+    acme --issue --dns dns_gandi_livedns -d "$DOMAIN" --keylength 2048 "$@"
+    ;;
+  deploy)
+    need_dsm
+    acme --deploy --deploy-hook synology_dsm -d "$DOMAIN" "$@"
+    ;;
+  renew)
+    need_dns
+    need_dsm
+    # Le hook de déploiement enregistré à l'émission est rejoué après un renouvellement.
+    # Code 2 d'acme.sh = pas encore dû : ce n'est pas une erreur.
+    rc=0
+    acme --renew -d "$DOMAIN" "$@" || rc=$?
+    [ "$rc" -eq 2 ] && rc=0
+    exit "$rc"
+    ;;
+  status)
+    trap - EXIT
+    echo | openssl s_client -connect "$DOMAIN:$PORT" -servername "$DOMAIN" 2>/dev/null |
+      openssl x509 -noout -subject -issuer -enddate -fingerprint -sha256
+    ;;
+  *) die "usage: relay-acme issue [--force] | deploy [--insecure] | renew [--force] | status" ;;
+esac

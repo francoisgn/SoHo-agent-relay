@@ -65,7 +65,12 @@
       "Bash(npm install *)",
       "Bash(npm i *)",
       "Bash(pip *)",
-      "Bash(pip3 *)"
+      "Bash(pip3 *)",
+      "Bash(relay-acme deploy *)",
+      "Bash(relay-acme issue --force*)",
+      "Bash(*--insecure*)",
+      "Bash(curl * https://api.gandi.net/* -X *)",
+      "Bash(curl -X * https://api.gandi.net/*)"
     ],
     "allow": [
       "Bash(unifi get *)",

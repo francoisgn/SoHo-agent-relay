@@ -44,6 +44,16 @@ services:
       UNIFI_INSECURE: "${UNIFI_INSECURE:-true}"
       RELAY_GIT_NAME: "${RELAY_GIT_NAME:-}"
       RELAY_GIT_EMAIL: "${RELAY_GIT_EMAIL:-}"
+      # Certificat du NAS (bin/relay-acme) ; vide = pas de renouvellement automatique
+      RELAY_ACME_DOMAIN: "${RELAY_ACME_DOMAIN:-}"
+      RELAY_ACME_SYNO_USER: "${RELAY_ACME_SYNO_USER:-}"
+      RELAY_ACME_SYNO_PORT: "${RELAY_ACME_SYNO_PORT:-5001}"
+      RELAY_ACME_SERVER: "${RELAY_ACME_SERVER:-letsencrypt}"
+
+    # Nom du NAS -> son IP LAN dans le conteneur (« nas.example.com:192.0.2.10 ») : DSM est
+    # joint par son nom, donc avec vérification du certificat. Défaut inoffensif si non utilisé.
+    extra_hosts:
+      - "${RELAY_ACME_HOSTS_ENTRY:-relay-acme.invalid:127.0.0.1}"
 
     volumes:
       # Politique générique (managed settings, hooks, CLAUDE.md de base) : lecture seule,
