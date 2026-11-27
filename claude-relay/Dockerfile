@@ -5,7 +5,7 @@
 # Monter une version : changer l'ARG / le digest, puis scripts/deploy.sh.
 
 # node:22.23.5-bookworm-slim, épinglé par digest (index multi-arch)
-FROM node:22.23.5-bookworm-slim@sha256:e9f565d32859f0cbfb52125eafe8be39390f24dac302dc3cdf566e8ba3ab21ee
+FROM node:26.13.0-bookworm-slim@sha256:add5c17c14752c54d2f3d519ec46a3815684d41c33f198bcb09fb998f7dcbf68
 
 ARG CLAUDE_CODE_VERSION=2.1.325
 # Bun n'est utile que pour les plugins Channels (Telegram) : désactivé par défaut.
