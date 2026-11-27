@@ -79,7 +79,7 @@ if grep -Eq "${B}(mkfs(\.[[:alnum:]]+)?|dd|mdadm|lvremove|vgremove|pvremove|lvre
   self_saw "Disk, volume or system storage operation"
 fi
 # rm récursif : refusé sur une racine (/, volume, dossier partagé, home), toléré ailleurs
-# (ménage) — la règle « ask » de la politique fait valider chaque commande sur le téléphone.
+# (ménage) ; en mode auto, le classifieur de Claude Code juge en plus chaque commande.
 if grep -Eq "${B}rm[[:space:]]+([^;&|]*[[:space:]])?(-[[:alnum:]]*[rR][[:alnum:]]*|--recursive)" <<<"$cmd" \
   && grep -Eq "[[:space:]](/|/\*|/volume[0-9]+/?(\*)?|/volume[0-9]+/[^/[:space:]\"']+/?(\*)?|~/?|\\\$HOME/?|\*|\.|\.\.)([[:space:]\"';&|)]|$)" <<<"$cmd"; then
   deny "recursive rm on a root, volume, shared folder or home. Target a precise subfolder"
@@ -101,6 +101,16 @@ if grep -Eq '\$\{?(GH_TOKEN|GITHUB_TOKEN|CLAUDE_CODE_OAUTH_TOKEN)\b' <<<"$cmd" \
   || grep -Eq "credential[[:space:]]+fill|git-credential|/proc/[^[:space:]]*/environ" <<<"$cmd"; then
   deny "this would print or leak an integration token (GH_TOKEN, credentials). Use gh/git/unifi directly"
 fi
+# Autres secrets (qBittorrent, TMDB, UniFi…) : exportés par relay-loop, leurs noms dans
+# RELAY_SECRET_NAMES (liste non secrète). Les utiliser dans une commande est permis
+# (curl -u "user:$QBT_PASSWORD"), les afficher (echo, printf, cat, tee, <<<) ne l'est pas.
+for v in ${RELAY_SECRET_NAMES:-}; do
+  [[ $v =~ ^[A-Z][A-Z0-9_]*$ ]] || continue
+  if grep -Eq "${B}(echo|printf|print|tee|cat)${E}[^;&|]*\\\$\{?$v\b" <<<"$cmd" \
+    || grep -Eq "<<<[[:space:]]*\"?\\\$\{?$v\b" <<<"$cmd"; then
+    deny "this would print or write the secret \$$v. Use it only as an argument of the command that needs it"
+  fi
+done
 if grep -Eq '/var/run/docker\.sock|/run/relay-secrets|\.credentials\.json|claude-relay/(app|logs|secrets)|/etc/claude-code/(hooks|managed)' <<<"$cmd"; then
   deny "access to the relay's own credentials, policy, audit log or deployed files"
 fi

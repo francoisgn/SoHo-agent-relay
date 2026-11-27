@@ -44,6 +44,27 @@ if [ -r "$GH_TOKEN_FILE" ] && [ -s "$GH_TOKEN_FILE" ]; then
     log "warning: gh_token present but gh is not installed in the image"
   fi
 fi
+# Autres secrets (scripts/set-secret.sh) : chaque fichier de /run/relay-secrets devient une
+# variable d'environnement en majuscules (qbt_password -> QBT_PASSWORD). Leurs noms, non secrets,
+# vont dans RELAY_SECRET_NAMES : le hook guard-bash refuse de les afficher.
+RELAY_SECRET_NAMES=""
+for f in /run/relay-secrets/*; do
+  [ -f "$f" ] && [ -r "$f" ] && [ -s "$f" ] || continue
+  n=${f##*/}
+  case "$n" in oauth_token | gh_token | *.new) continue ;; esac
+  [[ $n =~ ^[a-z][a-z0-9_]*$ ]] || continue
+  v=${n^^}
+  # Jamais une variable déjà définie (PATH, HOME, RELAY_*…) : un fichier mal nommé ne la remplace pas.
+  if [ -n "${!v+x}" ]; then
+    log "warning: secret $n ignored, \$$v is already set"
+    continue
+  fi
+  printf -v "$v" '%s' "$(tr -d '\r\n' <"$f")"
+  export "${v?}"
+  RELAY_SECRET_NAMES="$RELAY_SECRET_NAMES $v"
+done
+export RELAY_SECRET_NAMES
+[ -z "$RELAY_SECRET_NAMES" ] || log "secrets in the environment:$RELAY_SECRET_NAMES"
 [ -z "${RELAY_GIT_NAME:-}" ] || git config --global user.name "$RELAY_GIT_NAME"
 [ -z "${RELAY_GIT_EMAIL:-}" ] || git config --global user.email "$RELAY_GIT_EMAIL"
 
@@ -59,7 +80,7 @@ while true; do
         sleep 60
         continue
       fi
-      cmd=(claude remote-control --name "$RELAY_NAME" --spawn same-dir --permission-mode default)
+      cmd=(claude remote-control --name "$RELAY_NAME" --spawn same-dir --permission-mode auto)
       ;;
     channels)
       read -r -a channels <<<"$RELAY_CHANNELS"

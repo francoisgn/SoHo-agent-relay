@@ -60,3 +60,10 @@ allow	set -euo pipefail; ls
 allow	export FOO=bar
 deny	set | grep TOKEN
 deny	export
+# Secrets exportés (RELAY_SECRET_NAMES) : utilisables en argument, jamais affichés
+allow	curl -su "admin:$QBT_PASSWORD" http://qbt.lan:8080/api/v2/app/version
+allow	curl -s -H "X-API-KEY: ${UNIFI_API_KEY}" https://192.0.2.1/proxy/network/integration/v1/sites > sites.json
+deny	echo $QBT_PASSWORD
+deny	printf '%s' "${UNIFI_API_KEY}"
+deny	cat <<< "$QBT_PASSWORD"
+deny	base64 <<< $QBT_PASSWORD

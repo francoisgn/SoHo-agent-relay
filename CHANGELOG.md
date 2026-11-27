@@ -7,6 +7,18 @@ Notable changes, newest first. No releases yet: entries accumulate under "Unrele
 
 ### Added
 
+- Image: `python3`, `gh` (official apt repository), `sqlite3`, `dig`, `nc`, `file`, `less`, `tree` and archive
+  tools.
+- Secrets as environment variables: every file pushed by `scripts/set-secret.sh` becomes `<NAME>` for the agent
+  (`RELAY_SECRET_NAMES` lists them, `guard-bash` refuses to print them); `set-secret.sh --all` pushes a whole
+  name → Keychain table (`local/secrets.map`), including `cmd:` sources such as `gh auth token`.
+
+### Changed
+
+- Auto mode: Claude Code's classifier reviews every action; `ask` only for UniFi writes, `gh api` writes and package
+  installs; the base `CLAUDE.md` keeps the announced-yes rule for destructive or irreversible actions.
+- In-container SSH alias of the host renamed `docker-host` (rerun `scripts/grant-host-ssh.sh` after deploying).
+
 - Integrations: GitHub on all the operator's repositories by pull request only (`gh`, fine-grained token in
   `secrets/gh_token`, Belayline `guard-git` in the managed policy, `gh pr merge`/`repo delete`/`secret`/`auth`
   denied) and the UniFi Network local API (`bin/unifi`, key read from `secrets/unifi_api_key`, GET free, writes on
