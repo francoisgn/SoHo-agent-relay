@@ -10,6 +10,9 @@ cases=("$here/guard-cases.txt")
 
 if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then g=$'\e[32m'; r=$'\e[31m'; n=$'\e[0m'; else g=; r=; n=; fi
 
+# Noms de secrets que relay-loop exporterait (le hook lit cette liste).
+export RELAY_SECRET_NAMES="QBT_PASSWORD UNIFI_API_KEY"
+
 fail=0 total=0
 while IFS=$'\t' read -r expected command; do
   case "$expected" in ''|'#'*) continue ;; esac

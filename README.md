@@ -28,15 +28,15 @@
        │ [====] [====] [====] [====]   ● │                  └──────────┘
        │ DS416play  ·  kernel 3.10     ● │
        └─────────────────────────────────┘
-       night watch: lantern lit, antenna up, every rm asks first
+       night watch: lantern lit, antenna up, risky moves ask first
  ░▒▓█▓▒░ RELEASE INFO ░▒▓█▓▒░▒▓█▓▒░▒▓█▓▒░▒▓█▓▒░▒▓█▓▒░▒▓█▓▒░▒▓█▓▒░▒▓█▓▒░▒▓█▓▒░
    Name ......... SoHo-agent-relay         Agent ...... Claude Code
    Type ......... always-on relay          Remote ..... your phone
-   Host ......... Synology DS416play       Guards ..... audit, ask, deny
+   Host ......... Synology DS416play       Guards ..... audit, auto, deny
    Shift ........ 24/7, outbound only      Status ..... on duty
 ```
 
-**An always-on Claude Code relay on an old home NAS, driven from your phone, that asks before it touches anything.**
+**An always-on Claude Code relay on an old home NAS, driven from your phone: it gets on with routine work and asks before anything risky.**
 
 > **Intended use.** A personal homelab experiment, shared as is. It runs Claude Code with the operator's own
 > account, for the operator's own machines. Read and respect
@@ -58,7 +58,7 @@ with the context it already has: its memory, its workspace, its logs.
 | Need | What Claude Code brings, first-party |
 |---|---|
 | Reach it from a phone without opening a port | Remote Control: the session shows up in the Claude app; the container only makes outbound HTTPS. Channels (Telegram) as an option |
-| Decide what it may do, and lock that decision | Managed settings in a read-only mount: `deny` / `ask` / `allow` rules, bypass and auto modes disabled, managed hooks only |
+| Decide what it may do, and lock that decision | Managed settings in a read-only mount: `deny` / `ask` / `allow` rules, auto mode (Claude Code's action classifier) on, bypass mode disabled, managed hooks only |
 | See what it did | `PreToolUse` / `PostToolUse` hooks: refuse a command before it runs, log every action |
 | Plug in the NAS and the router | MCP servers or plain API calls with scoped tokens |
 | One login, one bill | The operator's own Claude account, no extra API key to keep on the box (an OAuth token from `claude setup-token` for Channels only) |
@@ -80,7 +80,7 @@ No agent framework, gateway or bot server to host and keep patched next to it.
   │  ┌──────────────────────────────────────────────────┴──────────────┐  │
   │  │ Claude Code (pinned)    uid 1500, cap_drop ALL, read-only root  │  │
   │  │   │                                                             │  │
-  │  │   ├─ managed policy (ro) ── deny / ask / allow, no bypass mode  │  │
+  │  │   ├─ managed policy (ro) ── auto + deny / ask, no bypass mode   │  │
   │  │   ├─ PreToolUse hook ────── guard-bash: refuse before it runs   │  │
   │  │   └─ PostToolUse hook ───── log-action ──▶ logs/actions.jsonl   │  │
   │  │                                                                 │  │
@@ -112,10 +112,10 @@ the model.
 | Container | Non-root (`uid 1500`), `cap_drop: ALL`, `no-new-privileges`, read-only root filesystem, `/tmp` in tmpfs, memory and CPU caps |
 | Host | **No Docker socket**, no privileged mode, no published port, no NAS share mounted. Only its own volumes: home, workspace, logs, secrets |
 | Policy | Managed settings mounted read-only, above anything Claude can write: `deny` for `docker`, `sudo`, `rm -r`, `dd`, reading credentials or `/proc/*/environ`, editing its own settings, hooks or logs |
-| Human approval | `ask` before anything destructive or networked: `rm`, `mv`, `kill`, `curl`, `ssh`, `git push`… The prompt lands on the phone; the base `CLAUDE.md` repeats the rule: announce, explain, wait for a yes |
+| Human approval | Auto mode: Claude Code's classifier reviews every action and lets routine work through (clone, branch and PR, reading the host over SSH, scripts in the workspace). `ask` remains for UniFi writes, `gh api` writes and package installs; the base `CLAUDE.md` requires an announced yes for anything destructive or irreversible (deletions outside the workspace, restarts, host or network changes). Prompts land on the phone |
 | Second net | `PreToolUse` hook `guard-bash` refuses destructive patterns even when wrapped (`bash -c '…'`, `/bin/rm`) |
 | Audit | `PostToolUse` hook appends every action to `actions.jsonl`, secrets masked (Anthropic, GitHub, Telegram, JWT, bearer, private keys, `password=`…), rotated by size, on the host only |
-| Tokens | Scoped to the minimum (read-only first), one per integration; stored in the Mac's Keychain or in `600` files outside the repository, piped, never passed as an argument or printed |
+| Tokens | Scoped to the minimum (read-only first), one per integration; stored in the Mac's Keychain, pushed through pipes to `600` files outside the repository (`scripts/set-secret.sh --all` from a name → Keychain table), exported to the agent as environment variables (`QBT_PASSWORD`…) that `guard-bash` refuses to print |
 | Repository | No IP, hostname or email in git: values in `.env` (gitignored, `.env.example` versioned), personal context in `local/`; gitleaks at commit time and over the full history in CI |
 
 Known limits, stated plainly: an agent-side hook can be bypassed by a creative enough command, which is why the
@@ -165,7 +165,7 @@ Then:
 ## Driving it from the phone
 
 - **Remote Control** (default): the relay session appears in the Claude app under its name (`RELAY_NAME`). Type
-  as you would in a terminal; when the relay wants to run something on the `ask` list, the approval waits for you.
+  as you would in a terminal; when the relay needs an approval, it waits for you there.
 - **Telegram** (optional, `RELAY_MODE=channels`): the official Channels plugin forwards messages to the running
   session. Handy for short questions; approvals stay on the policy's terms.
 - **From a terminal**: `docker exec -it claude-relay tmux attach -t relay` on the host (detach with `Ctrl-b d`).
@@ -177,7 +177,7 @@ Answers are kept short on purpose: they are read on a phone.
 | Target | Status | How | Scope |
 |---|---|---|---|
 | NAS (Synology) | 🟠 planned | DSM API or MCP, scoped account and token | Load, bandwidth, storage, housekeeping (every deletion asked first) |
-| GitHub (all the operator's repositories) | 🔵 wired, needs `gh` in the image and a token | `gh` + `git` over HTTPS, fine-grained token (contents, PRs, issues; no admin, no workflows) in `secrets/gh_token` | Branches and pull requests only: Belayline `guard-git` in the managed policy refuses pushes to protected branches, force-push and `--no-verify`; merge, repo deletion and settings denied |
+| GitHub (all the operator's repositories) | 🔵 wired: `gh` in the image, needs a token | `gh` + `git` over HTTPS, fine-grained token (contents, PRs, issues; no admin, no workflows) in `secrets/gh_token` | Branches and pull requests only: Belayline `guard-git` in the managed policy refuses pushes to protected branches, force-push and `--no-verify`; merge, repo deletion and settings denied |
 | UniFi network | 🔵 wired, needs an API key | UniFi Network local integration API through `bin/unifi` (`X-API-KEY`, key read from `secrets/unifi_api_key`, never exposed). Agent guide: [ai-gettingstarted.md](https://developer.ui.com/network/v11.0.97/ai-gettingstarted.md), [llms.txt](https://developer.ui.com/network/v11.0.97/llms.txt), [OpenAPI](https://developer.ui.com/network/v11.0.97/openapi.json) | Devices, clients, networks, firewall, Wi-Fi: `GET` free, every write asked first. Details in [`claude-relay/README.md`](claude-relay/README.md#intégrations) |
 | Philips Hue (and the Zigbee devices paired to the bridge) | 🟠 planned | Hue bridge local API (CLIP v2), application key valid on the LAN only; no Home Assistant | Lights, scenes, sensors |
 | Native HomeKit accessories | ⛔ out of scope | No local API for a container. The only routes: unpair them and re-pair to Home Assistant's HomeKit Controller, or an Apple Shortcut run on a Mac that stays on | Not driven by the relay |

@@ -20,11 +20,23 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 # versions du miroir, l'épinglage casserait le build ; le digest de l'image fixe la base.
 # force-unsafe-io : dpkg sans fsync par fichier (sinon des dizaines de minutes sur un NAS
 # dont le disque est chargé) ; sans risque pour un build d'image, retiré ensuite.
+# python3 : hook guard-git et scripts d'analyse ; gh : GitHub par PR (dépôt apt officiel, clé
+# vérifiée par signed-by) ; sqlite3, dig, nc, file, less, tree, archives : diagnostic et inspection.
+# Ni pip, ni compilateurs, ni ping (CAP_NET_RAW) : image légère pour un petit NAS.
 # hadolint ignore=DL3008
 RUN echo force-unsafe-io >/etc/dpkg/dpkg.cfg.d/99-relay-unsafe-io \
  && apt-get update \
  && apt-get install -y --no-install-recommends \
       ca-certificates curl git jq openssh-client procps tmux tini util-linux \
+      python3-minimal python3 sqlite3 dnsutils netcat-openbsd file less tree unzip xz-utils zstd \
+ && install -d -m 0755 /etc/apt/keyrings \
+ && curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
+      -o /etc/apt/keyrings/githubcli-archive-keyring.gpg \
+ && chmod 0644 /etc/apt/keyrings/githubcli-archive-keyring.gpg \
+ && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
+      >/etc/apt/sources.list.d/github-cli.list \
+ && apt-get update \
+ && apt-get install -y --no-install-recommends gh \
  && rm -rf /var/lib/apt/lists/* /etc/dpkg/dpkg.cfg.d/99-relay-unsafe-io
 
 # Claude Code (npm, version épinglée) ; Bun optionnel (le paquet npm choisit le binaire

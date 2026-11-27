@@ -17,7 +17,7 @@ pas la réactivité.
 | `.env` | **non** | hôte SSH, chemins, uid, mode. Modèle : `.env.example` |
 | `scripts/deploy.sh` | oui | copie (tar via ssh), `docker build` sur l'hôte, volumes, `up -d` du seul service |
 | `scripts/set-token.sh` | oui | trousseau macOS → `secrets/oauth_token` (600) sans affichage |
-| `scripts/set-secret.sh` | oui | trousseau macOS → `secrets/<nom>` (600) sans affichage : `gh_token`, `unifi_api_key` |
+| `scripts/set-secret.sh` | oui | trousseau macOS → `secrets/<nom>` (600) sans affichage, un secret ou `--all` d'après `local/secrets.map` ; dans le conteneur, variable `<NOM>` |
 
 Sur l'hôte, sous `$RELAY_DATA` : `app/` (déployé), `home/` (`~/.claude`, login, sessions,
 mémoire, plugins), `workspace/`, `logs/actions.jsonl` (audit, rotation 5 × 5 Mo),
@@ -78,30 +78,30 @@ vérifiées, inventaire) vit dans un repo privé séparé, cloné dans `/workspa
 Mise en service (sur le Mac ; `-w` en dernier = saisie masquée) :
 
 ```sh
-security add-generic-password -U -a claude-relay -s claude-relay-gh -w      # jeton GitHub fine-grained
 security add-generic-password -U -a claude-relay -s claude-relay-unifi -w   # clé API locale UniFi
-scripts/set-secret.sh gh_token claude-relay-gh
-scripts/set-secret.sh unifi_api_key claude-relay-unifi
+cp local/secrets.map.example local/secrets.map   # nom -> service du trousseau (ou cmd:), jamais de valeur
+scripts/set-secret.sh --all                      # pousse chaque secret ; un absent est signalé et sauté
 # .env : UNIFI_URL, RELAY_GIT_NAME, RELAY_GIT_EMAIL ; puis scripts/deploy.sh (relance du relais)
 ```
 
-Prérequis image : `gh` et `python3` (pour `guard-git` ; sans python3 le hook laisse passer, `guard-bash` et les
-règles restent actifs).
+Chaque secret devient une variable d'environnement de l'agent au démarrage du conteneur (`qbt_password` →
+`QBT_PASSWORD`, `gh_token` → `GH_TOKEN`) : utilisable en argument d'une commande, jamais affichable (`guard-bash`).
 
 ## Garde-fous
 
 - Conteneur = vraie frontière : non-root, rootfs en lecture seule, `no-new-privileges`,
   aucune capability, pas de socket Docker, aucun partage de données monté, aucun port.
-- `managed-settings.json` (priorité maximale, non modifiable par Claude) : bypass et auto
-  mode désactivés, écriture hors workspace bloquée, deny (`rm -r`, docker, sudo, secrets,
-  config), ask (réseau, `rm`, `mv`, git distant, gestionnaires de paquets).
+- `managed-settings.json` (priorité maximale, non modifiable par Claude) : mode auto (le
+  classifieur de Claude Code juge chaque action), bypass désactivé, écriture hors workspace bloquée,
+  deny (`rm -r`, docker, sudo, secrets, config), ask (écritures UniFi, `gh api` en écriture,
+  installations npm/pip).
 - Les règles Bash ne sont pas une frontière (`bash -c`, `/bin/rm`…) : `guard-bash.sh`
   (PreToolUse) refuse ces motifs où qu'ils apparaissent.
 - `guard-git.py` (PreToolUse, Belayline) : pas de push sur une branche protégée, pas de force-push, pas de
   `--no-verify`, dans tous les repos ; `guard-bash.sh` refuse aussi ce qui afficherait un jeton (`$GH_TOKEN`,
   `printenv`, `gh auth token`…).
 - `log-action.sh` (PostToolUse) : chaque action en JSONL, secrets masqués.
-- Permissions demandées sur le téléphone (Remote Control relaie les demandes).
+- Demandes d'approbation sur le téléphone (Remote Control les relaie).
 
 ## Limites
 
