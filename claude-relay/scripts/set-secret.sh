@@ -31,10 +31,12 @@ command -v security >/dev/null || die "macOS 'security' not found (run this on t
 # Écrit le secret lu sur stdin dans $RELAY_DATA/secrets/<nom> sur l'hôte.
 push_stdin() {
   local name=$1
+  # Côté hôte, la valeur passe par une variable du shell (mémoire, jamais disque ni argument : printf est
+  # un builtin) : Docker 20.10 reste bloqué si `run -i` lit directement le stdin de la session ssh.
   # La commande distante est construite côté client (voulu) ; le secret reste sur stdin.
   # shellcheck disable=SC2029
   tr -d '\r\n' |
-    ssh "$RELAY_SSH_HOST" "$RELAY_DOCKER run --rm -i --network none --user 0 --entrypoint sh \
+    ssh "$RELAY_SSH_HOST" "v=\$(cat); printf %s \"\$v\" | $RELAY_DOCKER run --rm -i --network none --user 0 --entrypoint sh \
       -v '$RELAY_DATA/secrets:/s' claude-relay:local -c \
       'umask 077; cat > /s/$name.new && test -s /s/$name.new \
        && chown $RELAY_UID:$RELAY_GID /s/$name.new && chmod 600 /s/$name.new \
