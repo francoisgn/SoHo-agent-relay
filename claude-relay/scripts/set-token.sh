@@ -20,10 +20,12 @@ security find-generic-password -a "$RELAY_KEYCHAIN_ACCOUNT" -s "$RELAY_KEYCHAIN_
 
 push_token() {
   # Le jeton ne transite que par des pipes (jamais en argument ni à l'écran).
+  # Côté hôte, la valeur passe par une variable du shell (mémoire, jamais disque ni argument : printf est
+  # un builtin) : Docker 20.10 reste bloqué si `run -i` lit directement le stdin de la session ssh.
   # La commande distante est construite côté client (voulu) ; le jeton reste sur stdin.
   # shellcheck disable=SC2029
   security find-generic-password -a "$RELAY_KEYCHAIN_ACCOUNT" -s "$RELAY_KEYCHAIN_SERVICE" -w | tr -d '\r\n' |
-    ssh "$RELAY_SSH_HOST" "$RELAY_DOCKER run --rm -i --network none --user 0 --entrypoint sh \
+    ssh "$RELAY_SSH_HOST" "v=\$(cat); printf %s \"\$v\" | $RELAY_DOCKER run --rm -i --network none --user 0 --entrypoint sh \
       -v '$RELAY_DATA/secrets:/s' claude-relay:local -c \
       'umask 077; cat > /s/oauth_token.new && test -s /s/oauth_token.new \
        && chown $RELAY_UID:$RELAY_GID /s/oauth_token.new && chmod 600 /s/oauth_token.new \
