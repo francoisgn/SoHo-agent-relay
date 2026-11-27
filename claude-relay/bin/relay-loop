@@ -68,6 +68,22 @@ export RELAY_SECRET_NAMES
 [ -z "${RELAY_GIT_NAME:-}" ] || git config --global user.name "$RELAY_GIT_NAME"
 [ -z "${RELAY_GIT_EMAIL:-}" ] || git config --global user.email "$RELAY_GIT_EMAIL"
 
+# Certificat du NAS (bin/relay-acme) : une vérification par jour, indépendante de Claude.
+# Premier passage 10 min après le démarrage ; journal dans /var/log/claude-relay/acme.log.
+if [ -n "${RELAY_ACME_DOMAIN:-}" ]; then
+  (
+    sleep 600
+    while true; do
+      if relay-acme renew >>/var/log/claude-relay/acme.log 2>&1; then
+        log "acme: renewal check ok for $RELAY_ACME_DOMAIN"
+      else
+        log "warning: acme renewal failed for $RELAY_ACME_DOMAIN (see /var/log/claude-relay/acme.log)"
+      fi
+      sleep 86400
+    done
+  ) &
+fi
+
 backoff=10
 while true; do
   unset CLAUDE_CODE_OAUTH_TOKEN
