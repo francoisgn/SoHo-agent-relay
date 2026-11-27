@@ -3,7 +3,7 @@
 # 21063-21064 (HomeKit Bridge). Pas de privileged, pas de socket Docker.
 services:
   homeassistant:
-    image: ghcr.io/home-assistant/home-assistant:2026.11.1
+    image: ghcr.io/home-assistant/home-assistant:2026.11.3
     container_name: homeassistant
     network_mode: host
     restart: unless-stopped
