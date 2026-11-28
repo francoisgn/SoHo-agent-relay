@@ -7,6 +7,9 @@ Notable changes, newest first. No releases yet: entries accumulate under "Unrele
 
 ### Added
 
+- Permissions: allow without confirmation for routine work (`ssh docker-host`, `jq`/`grep`/`ls`, reads and
+  writes in `/workspace`, the relay's memory). `guard-bash` still runs first on every command, deny and ask rules
+  are unchanged. Installation-specific rules (host alias, LAN `curl`) belong in `local/managed-settings.d/`.
 - Host SSH: `RELAY_HOST_ALIASES` adds names to the relay's `Host docker-host` block (`grant-host-ssh.sh`), e.g.
   the name the operator uses for the host. `guard-bash` matches commands whatever the host name: test cases for
   another alias pin that.

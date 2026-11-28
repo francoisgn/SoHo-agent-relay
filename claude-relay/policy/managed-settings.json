@@ -84,7 +84,17 @@
       "Bash(gh pr checks *)",
       "Bash(gh run list *)",
       "Bash(gh run view *)",
-      "Bash(gh label list *)"
+      "Bash(gh label list *)",
+      "Bash(ssh docker-host *)",
+      "Bash(jq *)",
+      "Bash(grep *)",
+      "Bash(ls *)",
+      "Bash(cat /workspace/*)",
+      "Read(//workspace/**)",
+      "Edit(//workspace/**)",
+      "Write(//workspace/**)",
+      "Edit(~/.claude/projects/-workspace/memory/**)",
+      "Write(~/.claude/projects/-workspace/memory/**)"
     ]
   },
   "allowManagedHooksOnly": true,
