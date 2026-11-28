@@ -95,7 +95,9 @@ Chaque secret devient une variable d'environnement de l'agent au démarrage du c
 - `managed-settings.json` (priorité maximale, non modifiable par Claude) : mode auto (le
   classifieur de Claude Code juge chaque action), bypass désactivé, écriture hors workspace bloquée,
   deny (`rm -r`, docker, sudo, secrets, config), ask (écritures UniFi, `gh api` en écriture,
-  installations npm/pip).
+  installations npm/pip), allow sans confirmation pour le travail courant (`ssh docker-host`, lecture
+  `jq`/`grep`/`ls`, `/workspace`, mémoire du relais). Les hooks PreToolUse passent avant les allow :
+  `ssh docker-host '…'` reste filtré par `guard-bash.sh`.
 - Les règles Bash ne sont pas une frontière (`bash -c`, `/bin/rm`…) : `guard-bash.sh`
   (PreToolUse) refuse ces motifs où qu'ils apparaissent.
 - `guard-git.py` (PreToolUse, Belayline) : pas de push sur une branche protégée, pas de force-push, pas de
