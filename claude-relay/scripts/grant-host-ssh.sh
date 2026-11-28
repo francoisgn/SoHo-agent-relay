@@ -4,7 +4,7 @@
 #      la clé privée ne quitte jamais le conteneur ;
 #   2. clé publique ajoutée à ~/.ssh/authorized_keys de l'utilisateur hôte, restreinte au
 #      réseau Docker (from=) et sans forwarding, commentée « claude-relay » (traçable) ;
-#   3. ~/.ssh/config (alias « docker-host ») et known_hosts épinglé avec la clé d'hôte lue par le
+#   3. ~/.ssh/config (alias « docker-host », plus RELAY_HOST_ALIASES) et known_hosts épinglé avec la clé d'hôte lue par le
 #      canal SSH de l'opérateur (pas de trust-on-first-use depuis le conteneur) ;
 #   4. test de connexion depuis le conteneur.
 # Idempotent. Révocation : scripts/grant-host-ssh.sh --revoke.
@@ -23,6 +23,9 @@ RELAY_HOST_ADDR=${RELAY_HOST_ADDR:-}
 RELAY_HOST_USER=${RELAY_HOST_USER:-$(ssh "$RELAY_SSH_HOST" 'id -un')}
 # Réseaux autorisés à présenter la clé (plages Docker par défaut).
 RELAY_HOST_FROM=${RELAY_HOST_FROM:-172.16.0.0/12}
+# Noms SSH en plus de docker-host (ex. le nom que l'opérateur donne à l'hôte), séparés par des espaces.
+RELAY_HOST_ALIASES=${RELAY_HOST_ALIASES:-}
+[[ $RELAY_HOST_ALIASES =~ ^[[:alnum:]._[:space:]-]*$ ]] || die "RELAY_HOST_ALIASES: letters, digits, . _ - and spaces only"
 KEY=.ssh/id_ed25519_host
 COMMENT=claude-relay
 
@@ -77,8 +80,8 @@ hostkey=$(ssh "$RELAY_SSH_HOST" 'cat /etc/ssh/ssh_host_ed25519_key.pub' | awk '{
 
 write_config() {
   {
-    printf 'Host docker-host\n  HostName %s\n  User %s\n  IdentityFile ~/%s\n  IdentitiesOnly yes\n' \
-      "$RELAY_HOST_ADDR" "$RELAY_HOST_USER" "$KEY"
+    printf 'Host docker-host%s\n  HostName %s\n  User %s\n  IdentityFile ~/%s\n  IdentitiesOnly yes\n' \
+      "${RELAY_HOST_ALIASES:+ $RELAY_HOST_ALIASES}" "$RELAY_HOST_ADDR" "$RELAY_HOST_USER" "$KEY"
     printf '  StrictHostKeyChecking yes\n  UserKnownHostsFile ~/.ssh/known_hosts_host\n'
     printf '  HostKeyAlias docker-host\n  ConnectTimeout 10\n  ServerAliveInterval 30\n  ServerAliveCountMax 4\n'
   } | ssh "$RELAY_SSH_HOST" "$RELAY_DOCKER exec -i $RELAY_CONTAINER sh -c 'umask 077; cat > \$HOME/.ssh/config'"
