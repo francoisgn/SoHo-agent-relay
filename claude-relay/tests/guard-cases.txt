@@ -67,3 +67,9 @@ deny	echo $QBT_PASSWORD
 deny	printf '%s' "${UNIFI_API_KEY}"
 deny	cat <<< "$QBT_PASSWORD"
 deny	base64 <<< $QBT_PASSWORD
+
+# Autre alias du même hôte (RELAY_HOST_ALIASES) : le hook ne dépend pas du nom, mêmes décisions.
+allow	ssh my-nas 'sudo /usr/local/bin/docker restart some-app'
+deny	ssh my-nas 'sudo /usr/local/bin/docker restart claude-relay'
+deny	ssh my-nas 'sudo reboot'
+deny	ssh my-nas 'cd /volume1/docker/claude-relay/app && sudo docker-compose up -d'

@@ -7,6 +7,9 @@ Notable changes, newest first. No releases yet: entries accumulate under "Unrele
 
 ### Added
 
+- Host SSH: `RELAY_HOST_ALIASES` adds names to the relay's `Host docker-host` block (`grant-host-ssh.sh`), e.g.
+  the name the operator uses for the host. `guard-bash` matches commands whatever the host name: test cases for
+  another alias pin that.
 - NAS certificate: `bin/relay-acme` issues a Let's Encrypt certificate by DNS-01 (Gandi LiveDNS, no open port) with
   acme.sh 3.1.7 pinned in the image (SHA-256 checked), deploys it to DSM (`synology_dsm` hook, DSM reached by name
   through `RELAY_ACME_HOSTS_ENTRY`) and `relay-loop` checks the renewal daily. acme.sh always saves the token and
